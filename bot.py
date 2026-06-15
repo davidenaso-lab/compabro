@@ -1,15 +1,20 @@
 import os
-from telegram import Update
-from telegram.ext import Application, MessageHandler, filters, ContextTypes
+import threading
+from flask import Flask
+import telebot
 
 STAFF_CHAT_ID = -5598663431
+bot = telebot.TeleBot(os.environ["BOT_TOKEN"])
+flask_app = Flask(__name__)
 
-async def forward(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(
-        chat_id=STAFF_CHAT_ID,
-        text=update.message.text
-    )
+@bot.message_handler(func=lambda m: True)
+def forward(message):
+    if message.text and not message.text.startswith('/'):
+        bot.send_message(STAFF_CHAT_ID, message.text)
 
-app = Application.builder().token(os.environ["BOT_TOKEN"]).build()
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, forward))
-app.run_polling()
+@flask_app.route('/')
+def home():
+    return 'ok'
+
+threading.Thread(target=bot.infinity_polling, daemon=True).start()
+flask_app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
